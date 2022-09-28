@@ -1,14 +1,14 @@
 using Microsoft.EntityFrameworkCore;
-using AuthService.Infrastructure;
-using AuthService.Services;
+using PaymentService.Infrastructure;
+using PaymentService.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services
     .AddEndpointsApiExplorer()
     .AddSwaggerGen()
-    .AddDbContext<AuthDbContext>(options =>
-        options.UseNpgsql(builder.Configuration.GetConnectionString("AuthDatabase")))
+    .AddDbContext<PaymentDbContext>(options =>
+        options.UseNpgsql(builder.Configuration.GetConnectionString("PaymentDatabase")))
     .AddScoped<IDatabaseInitializer, DatabaseInitializer>()
     .AddScoped<IHealthService, HealthService>();
 
@@ -28,9 +28,9 @@ app.MapGet("/health", async (IHealthService healthService) =>
     return Results.Ok(health);
 });
 
-app.MapGet("/auth", () => Results.Ok(new
+app.MapGet("/payments", () => Results.Ok(new
 {
-    message = "AuthService is initialized",
+    message = "PaymentService is initialized",
     version = "1.0"
 }));
 

@@ -1,0 +1,34 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UserService", "UserService\UserService.csproj", "{23113FE3-456C-46BF-B50C-4B270B712101}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AuthService", "AuthService\AuthService.csproj", "{D9B61EF1-6E87-4D7D-9A6C-133B9786629C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NotificationService", "NotificationService\NotificationService.csproj", "{21ACCD8C-23C3-4D01-BE6C-A323F609C361}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{23113FE3-456C-46BF-B50C-4B270B712101}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{23113FE3-456C-46BF-B50C-4B270B712101}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{23113FE3-456C-46BF-B50C-4B270B712101}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{23113FE3-456C-46BF-B50C-4B270B712101}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D9B61EF1-6E87-4D7D-9A6C-133B9786629C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D9B61EF1-6E87-4D7D-9A6C-133B9786629C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D9B61EF1-6E87-4D7D-9A6C-133B9786629C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D9B61EF1-6E87-4D7D-9A6C-133B9786629C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{21ACCD8C-23C3-4D01-BE6C-A323F609C361}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{21ACCD8C-23C3-4D01-BE6C-A323F609C361}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{21ACCD8C-23C3-4D01-BE6C-A323F609C361}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{21ACCD8C-23C3-4D01-BE6C-A323F609C361}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal

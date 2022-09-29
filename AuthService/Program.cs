@@ -2,6 +2,9 @@ using Microsoft.EntityFrameworkCore;
 using AuthService.Infrastructure;
 using AuthService.Services;
 
+using MassTransit;
+using AuthService.Consumers;
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services
@@ -11,6 +14,22 @@ builder.Services
         options.UseNpgsql(builder.Configuration.GetConnectionString("AuthDatabase")))
     .AddScoped<IDatabaseInitializer, DatabaseInitializer>()
     .AddScoped<IHealthService, HealthService>();
+
+builder.Services.AddMassTransit(x =>
+{
+    x.AddConsumer<UserCreatedConsumer>();
+
+    x.UsingRabbitMq((context, cfg) =>
+    {
+        cfg.Host("localhost", "/", h =>
+        {
+            h.Username("guest");
+            h.Password("guest");
+        });
+
+        cfg.ConfigureEndpoints(context);
+    });
+});
 
 var app = builder.Build();
 

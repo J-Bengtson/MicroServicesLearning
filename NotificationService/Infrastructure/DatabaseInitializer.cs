@@ -3,7 +3,7 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Threading.Tasks;
 
-namespace PaymentService.Infrastructure
+namespace NotificationService.Infrastructure
 {
     public interface IDatabaseInitializer
     {
@@ -12,10 +12,10 @@ namespace PaymentService.Infrastructure
 
     public class DatabaseInitializer : IDatabaseInitializer
     {
-        private readonly PaymentDbContext _dbContext;
+        private readonly NotificationDbContext _dbContext;
         private readonly ILogger<DatabaseInitializer> _logger;
 
-        public DatabaseInitializer(PaymentDbContext dbContext, ILogger<DatabaseInitializer> logger)
+        public DatabaseInitializer(NotificationDbContext dbContext, ILogger<DatabaseInitializer> logger)
         {
             _dbContext = dbContext;
             _logger = logger;
@@ -33,6 +33,7 @@ namespace PaymentService.Infrastructure
             catch (Exception ex)
             {
                 _logger.LogError(ex, "An error occurred while initializing the database.");
+                // We'll swallow it for now so startup doesn't completely crash if no migrations exist yet.
             }
         }
     }

@@ -1,7 +1,7 @@
 using System;
 using System.Threading.Tasks;
 
-namespace PaymentService.Services
+namespace NotificationService.Services
 {
     public interface IHealthService
     {

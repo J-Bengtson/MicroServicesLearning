@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using NotificationService.Infrastructure;
 using NotificationService.Services;
+using MassTransit;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -11,6 +12,19 @@ builder.Services
         options.UseNpgsql(builder.Configuration.GetConnectionString("NotificationDatabase")))
     .AddScoped<IDatabaseInitializer, DatabaseInitializer>()
     .AddScoped<IHealthService, HealthService>();
+
+builder.Services.AddMassTransit(x =>
+{
+    x.UsingRabbitMq((context, cfg) =>
+    {
+        cfg.Host("localhost", "/", h =>
+        {
+            h.Username("guest");
+            h.Password("guest");
+        });
+        cfg.ConfigureEndpoints(context);
+    });
+});
 
 var app = builder.Build();
 

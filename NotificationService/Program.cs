@@ -15,6 +15,8 @@ builder.Services
 
 builder.Services.AddMassTransit(x =>
 {
+    x.AddConsumer<NotificationService.Consumers.UserCreatedEmailConsumer>();
+
     x.UsingRabbitMq((context, cfg) =>
     {
         cfg.Host("localhost", "/", h =>
@@ -22,7 +24,11 @@ builder.Services.AddMassTransit(x =>
             h.Username("guest");
             h.Password("guest");
         });
-        cfg.ConfigureEndpoints(context);
+        
+        cfg.ReceiveEndpoint("notification-user-created", e =>
+        {
+            e.ConfigureConsumer<NotificationService.Consumers.UserCreatedEmailConsumer>(context);
+        });
     });
 });
 

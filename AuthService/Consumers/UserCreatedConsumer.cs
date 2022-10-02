@@ -21,20 +21,18 @@ namespace AuthService.Consumers
         public async Task Consume(ConsumeContext<UserCreatedIntegrationEvent> context)
         {
             var message = context.Message;
-            _logger.LogInformation("Received UserCreatedIntegrationEvent for User {UserId} ({Email})", message.UserId, message.Email);
-
-            var log = new LogAuthentication
+            
+            var authUser = new AuthUser
             {
-                UserId = message.UserId,
-                IsSuccessful = true,
-                IpAddress = "System: RabbitMQ Event",
-                UserAgent = "MassTransit Consumer"
+                Id = message.UserId,
+                Email = message.Email,
+                PasswordHash = message.PasswordHash
             };
 
-            _dbContext.LogAuthentications.Add(log);
+            _dbContext.AuthUsers.Add(authUser);
             await _dbContext.SaveChangesAsync();
 
-            _logger.LogInformation("User {UserId} registered in Auth Database via Integration Event.", message.UserId);
+            _logger.LogInformation($"[AUTH SERVICE] User replicated: {message.UserId} / {message.Email}");
         }
     }
 }

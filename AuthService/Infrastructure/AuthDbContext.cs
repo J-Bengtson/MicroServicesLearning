@@ -10,6 +10,7 @@ namespace AuthService.Infrastructure
         }
 
         public DbSet<LogAuthentication> LogAuthentications { get; set; }
+        public DbSet<AuthUser> AuthUsers { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

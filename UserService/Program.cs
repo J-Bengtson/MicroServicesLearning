@@ -47,7 +47,8 @@ app.MapPost("/user", async (UserService.Domain.User user, UserDbContext db, Mass
     {
         UserId = user.Id,
         Username = user.Username,
-        Email = user.Email
+        Email = user.Email,
+        PasswordHash = user.PasswordHash
     });
 
     return Results.Created($"/user/{user.Id}", user);

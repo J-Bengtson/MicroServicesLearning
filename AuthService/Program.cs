@@ -1,23 +1,58 @@
+using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
 using AuthService.Infrastructure;
-using AuthService.Services;
-
 using MassTransit;
-using AuthService.Consumers;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
+using System;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using Microsoft.Extensions.Configuration;
+using Microsoft.AspNetCore.Http;
+using AuthService.Domain;
+using Microsoft.Extensions.Hosting;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services
-    .AddEndpointsApiExplorer()
-    .AddSwaggerGen()
-    .AddDbContext<AuthDbContext>(options =>
-        options.UseNpgsql(builder.Configuration.GetConnectionString("AuthDatabase")))
-    .AddScoped<IDatabaseInitializer, DatabaseInitializer>()
-    .AddScoped<IHealthService, HealthService>();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+
+builder.Services.AddDbContext<AuthDbContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("AuthDatabase")));
+
+builder.Services.AddScoped<IDatabaseInitializer, DatabaseInitializer>();
+
+// JWT Authentication
+var jwtSettings = builder.Configuration.GetSection("Jwt");
+var key = Encoding.ASCII.GetBytes(jwtSettings["Key"]!);
+
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.RequireHttpsMetadata = false;
+    options.SaveToken = true;
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuerSigningKey = true,
+        IssuerSigningKey = new SymmetricSecurityKey(key),
+        ValidateIssuer = true,
+        ValidIssuer = jwtSettings["Issuer"],
+        ValidateAudience = true,
+        ValidAudience = jwtSettings["Audience"],
+        ValidateLifetime = true
+    };
+});
+builder.Services.AddAuthorization();
 
 builder.Services.AddMassTransit(x =>
 {
-    x.AddConsumer<UserCreatedConsumer>();
+    x.AddConsumer<AuthService.Consumers.UserCreatedConsumer>();
 
     x.UsingRabbitMq((context, cfg) =>
     {
@@ -27,13 +62,20 @@ builder.Services.AddMassTransit(x =>
             h.Password("guest");
         });
 
-        cfg.ConfigureEndpoints(context);
+        cfg.ReceiveEndpoint("auth-user-created", e =>
+        {
+            e.ConfigureConsumer<AuthService.Consumers.UserCreatedConsumer>(context);
+        });
     });
 });
 
 var app = builder.Build();
 
-await InitializeDatabaseAsync(app);
+using (var scope = app.Services.CreateScope())
+{
+    var initializer = scope.ServiceProvider.GetRequiredService<IDatabaseInitializer>();
+    await initializer.InitializeAsync();
+}
 
 if (app.Environment.IsDevelopment())
 {
@@ -41,23 +83,54 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.MapGet("/health", async (IHealthService healthService) =>
-{
-    var health = await healthService.CheckHealthAsync();
-    return Results.Ok(health);
-});
+app.UseAuthentication();
+app.UseAuthorization();
 
-app.MapGet("/auth", () => Results.Ok(new
+app.MapPost("/auth/login", async (LoginRequest request, AuthDbContext db, IConfiguration config) =>
 {
-    message = "AuthService is initialized",
-    version = "1.0"
-}));
+    var authUser = await db.AuthUsers.FirstOrDefaultAsync(u => u.Email == request.Email && u.PasswordHash == request.Password);
+
+    var log = new LogAuthentication
+    {
+        UserId = authUser?.Id ?? Guid.Empty,
+        IsSuccessful = authUser != null,
+        IpAddress = "API",
+        UserAgent = "Swagger/Browser"
+    };
+
+    db.LogAuthentications.Add(log);
+    await db.SaveChangesAsync();
+
+    if (authUser == null)
+    {
+        return Results.Unauthorized();
+    }
+
+    // Generate JWT
+    var jwtKey = Encoding.ASCII.GetBytes(config["Jwt:Key"]!);
+    var tokenDescriptor = new SecurityTokenDescriptor
+    {
+        Subject = new ClaimsIdentity(new[]
+        {
+            new Claim(ClaimTypes.NameIdentifier, authUser.Id.ToString()),
+            new Claim(ClaimTypes.Email, authUser.Email)
+        }),
+        Expires = DateTime.UtcNow.AddHours(2),
+        Issuer = config["Jwt:Issuer"],
+        Audience = config["Jwt:Audience"],
+        SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(jwtKey), SecurityAlgorithms.HmacSha256Signature)
+    };
+    
+    var tokenHandler = new JwtSecurityTokenHandler();
+    var token = tokenHandler.CreateToken(tokenDescriptor);
+    
+    return Results.Ok(new { Token = tokenHandler.WriteToken(token) });
+});
 
 app.Run();
 
-static async Task InitializeDatabaseAsync(WebApplication app)
+public class LoginRequest
 {
-    using var scope = app.Services.CreateScope();
-    var initializer = scope.ServiceProvider.GetRequiredService<IDatabaseInitializer>();
-    await initializer.InitializeAsync();
+    public string Email { get; set; } = string.Empty;
+    public string Password { get; set; } = string.Empty;
 }

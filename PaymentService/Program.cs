@@ -1,17 +1,55 @@
+using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
 using PaymentService.Infrastructure;
-using PaymentService.Services;
 using MassTransit;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
+using PaymentService.Domain;
+using System;
+using System.Linq;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Http;
+using Core.Events;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services
-    .AddEndpointsApiExplorer()
-    .AddSwaggerGen()
-    .AddDbContext<PaymentDbContext>(options =>
-        options.UseNpgsql(builder.Configuration.GetConnectionString("PaymentDatabase")))
-    .AddScoped<IDatabaseInitializer, DatabaseInitializer>()
-    .AddScoped<IHealthService, HealthService>();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+
+builder.Services.AddDbContext<PaymentDbContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("PaymentDatabase")));
+
+builder.Services.AddScoped<IDatabaseInitializer, DatabaseInitializer>();
+
+// JWT Authentication
+var jwtSettings = builder.Configuration.GetSection("Jwt");
+var key = Encoding.ASCII.GetBytes(jwtSettings["Key"]!);
+
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.RequireHttpsMetadata = false;
+    options.SaveToken = true;
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuerSigningKey = true,
+        IssuerSigningKey = new SymmetricSecurityKey(key),
+        ValidateIssuer = true,
+        ValidIssuer = jwtSettings["Issuer"],
+        ValidateAudience = true,
+        ValidAudience = jwtSettings["Audience"],
+        ValidateLifetime = true
+    };
+});
+builder.Services.AddAuthorization();
 
 builder.Services.AddMassTransit(x =>
 {
@@ -28,7 +66,11 @@ builder.Services.AddMassTransit(x =>
 
 var app = builder.Build();
 
-await InitializeDatabaseAsync(app);
+using (var scope = app.Services.CreateScope())
+{
+    var initializer = scope.ServiceProvider.GetRequiredService<IDatabaseInitializer>();
+    await initializer.InitializeAsync();
+}
 
 if (app.Environment.IsDevelopment())
 {
@@ -36,23 +78,44 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.MapGet("/health", async (IHealthService healthService) =>
-{
-    var health = await healthService.CheckHealthAsync();
-    return Results.Ok(health);
-});
+app.UseAuthentication();
+app.UseAuthorization();
 
-app.MapGet("/payments", () => Results.Ok(new
+app.MapPost("/payments/process", async (PaymentRequest request, PaymentDbContext db, IPublishEndpoint publishEndpoint, HttpContext httpContext) =>
 {
-    message = "PaymentService is initialized",
-    version = "1.0"
-}));
+    var userIdClaim = httpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+    if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+    {
+        return Results.Unauthorized();
+    }
+
+    // Process payment (Simulated)
+    var transaction = new PaymentTransaction
+    {
+        UserId = userId,
+        Amount = request.Amount,
+        IsSuccessful = true,
+        ProcessedAt = DateTime.UtcNow
+    };
+
+    db.PaymentTransactions.Add(transaction);
+    await db.SaveChangesAsync();
+
+    // Publish Integration Event
+    await publishEndpoint.Publish(new PaymentProcessedIntegrationEvent
+    {
+        PaymentId = transaction.Id,
+        UserId = transaction.UserId,
+        Amount = transaction.Amount,
+        IsSuccessful = transaction.IsSuccessful
+    });
+
+    return Results.Ok(new { message = "Payment processed successfully", transactionId = transaction.Id });
+}).RequireAuthorization();
 
 app.Run();
 
-static async Task InitializeDatabaseAsync(WebApplication app)
+public class PaymentRequest
 {
-    using var scope = app.Services.CreateScope();
-    var initializer = scope.ServiceProvider.GetRequiredService<IDatabaseInitializer>();
-    await initializer.InitializeAsync();
+    public decimal Amount { get; set; }
 }

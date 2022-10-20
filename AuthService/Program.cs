@@ -88,7 +88,13 @@ app.UseAuthorization();
 
 app.MapGet("/info", () => Results.Ok(new { Service = "Auth", JWT = "Enabled" }));
 
-app.MapPost("/auth/login", async (LoginRequest request, AuthDbContext db, IConfiguration config) =>
+app.MapGet("/stats", async (AuthDbContext db) => 
+{
+    var loginAttempts = await db.LogAuthentications.CountAsync();
+    return Results.Ok(new { TotalLoginAttempts = loginAttempts });
+});
+
+app.MapPost("/auth/login", async (LoginRequest request, AuthDbContext db, IConfiguration config, MassTransit.IPublishEndpoint publishEndpoint, HttpContext httpContext) =>
 {
     var authUser = await db.AuthUsers.FirstOrDefaultAsync(u => u.Email == request.Email && u.PasswordHash == request.Password);
 
@@ -96,8 +102,8 @@ app.MapPost("/auth/login", async (LoginRequest request, AuthDbContext db, IConfi
     {
         UserId = authUser?.Id ?? Guid.Empty,
         IsSuccessful = authUser != null,
-        IpAddress = "API",
-        UserAgent = "Swagger/Browser"
+        IpAddress = httpContext.Connection.RemoteIpAddress?.ToString() ?? "API",
+        UserAgent = httpContext.Request.Headers["User-Agent"].ToString()
     };
 
     db.LogAuthentications.Add(log);
@@ -107,6 +113,14 @@ app.MapPost("/auth/login", async (LoginRequest request, AuthDbContext db, IConfi
     {
         return Results.Unauthorized();
     }
+
+    // Publish Security Event to RabbitMQ
+    await publishEndpoint.Publish(new Core.Events.UserLoggedInIntegrationEvent
+    {
+        UserId = authUser.Id,
+        Timestamp = DateTime.UtcNow,
+        IpAddress = log.IpAddress
+    });
 
     // Generate JWT
     var jwtKey = Encoding.ASCII.GetBytes(config["Jwt:Key"]!);

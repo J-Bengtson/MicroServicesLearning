@@ -10,6 +10,7 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddMassTransit(x =>
 {
     x.AddConsumer<UserService.Consumers.PaymentProcessedConsumer>();
+    x.AddConsumer<UserService.Consumers.UserLoggedInConsumer>();
 
     x.UsingRabbitMq((context, cfg) =>
     {
@@ -41,6 +42,13 @@ app.MapGet("/user", () => Results.Ok(new
 }));
 
 app.MapGet("/info", () => Results.Ok(new { Service = "User", Version = "1.0", Database = "Connected" }));
+
+app.MapGet("/stats", async (UserDbContext db) => 
+{
+    var totalUsers = await db.Users.CountAsync();
+    var premiumUsers = await db.Users.CountAsync(u => u.IsPremium);
+    return Results.Ok(new { TotalUsers = totalUsers, PremiumUsers = premiumUsers });
+});
 
 app.MapPost("/users", async (UserService.Domain.User user, UserDbContext db, MassTransit.IPublishEndpoint publishEndpoint) =>
 {

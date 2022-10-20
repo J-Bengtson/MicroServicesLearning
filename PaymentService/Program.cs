@@ -83,6 +83,13 @@ app.UseAuthorization();
 
 app.MapGet("/info", () => Results.Ok(new { Service = "Payment", Secure = true }));
 
+app.MapGet("/stats", async (PaymentDbContext db) => 
+{
+    var transactionCount = await db.PaymentTransactions.CountAsync();
+    var totalVolume = await db.PaymentTransactions.SumAsync(p => p.Amount);
+    return Results.Ok(new { TransactionCount = transactionCount, TotalVolume = totalVolume });
+});
+
 app.MapPost("/payments/process", async (PaymentRequest request, PaymentDbContext db, IPublishEndpoint publishEndpoint, HttpContext httpContext) =>
 {
     var userIdClaim = httpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;

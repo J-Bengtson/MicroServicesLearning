@@ -8,8 +8,11 @@ using System;
 
 using Polly;
 using Polly.Extensions.Http;
+using Core.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddCustomDistributedTracing("GatewayService", builder.Configuration);
 
 builder.Services.AddReverseProxy()
     .LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));

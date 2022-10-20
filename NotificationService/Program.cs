@@ -2,8 +2,11 @@ using Microsoft.EntityFrameworkCore;
 using NotificationService.Infrastructure;
 using NotificationService.Services;
 using MassTransit;
+using Core.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddCustomDistributedTracing("NotificationService", builder.Configuration);
 
 builder.Services
     .AddEndpointsApiExplorer()

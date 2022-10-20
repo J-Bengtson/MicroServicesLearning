@@ -14,8 +14,11 @@ using System.Linq;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
 using Core.Events;
+using Core.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddCustomDistributedTracing("PaymentService", builder.Configuration);
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -112,7 +115,7 @@ app.MapPost("/payments/process", async (PaymentRequest request, PaymentDbContext
             Amount = transaction.Amount,
             IsSuccessful = true
         });
-        return Results.Ok(transaction);
+        return Results.Ok(Core.Domain.ApiResponse<PaymentTransaction>.CreateSuccess(transaction));
     }
     else
     {
@@ -124,7 +127,7 @@ app.MapPost("/payments/process", async (PaymentRequest request, PaymentDbContext
             Reason = transaction.FailureReason ?? "Unknown Error",
             FailedAt = DateTime.UtcNow
         });
-        return Results.BadRequest(new { Error = transaction.FailureReason });
+        return Results.BadRequest(Core.Domain.ApiResponse<object>.CreateFail(transaction.FailureReason ?? "Unknown Error"));
     }
 }).RequireAuthorization();
 

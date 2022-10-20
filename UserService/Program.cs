@@ -1,8 +1,11 @@
 using Microsoft.EntityFrameworkCore;
 using UserService.Infrastructure;
 using MassTransit;
+using Core.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddCustomDistributedTracing("UserService", builder.Configuration);
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();

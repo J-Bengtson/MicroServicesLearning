@@ -13,8 +13,11 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.AspNetCore.Http;
 using AuthService.Domain;
 using Microsoft.Extensions.Hosting;
+using Core.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddCustomDistributedTracing("AuthService", builder.Configuration);
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();

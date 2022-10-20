@@ -25,6 +25,15 @@ services:
     networks:
       - microservices_net
 
+  zipkin:
+    image: openzipkin/zipkin
+    container_name: zipkin_microservices
+    ports:
+      - "9411:9411"
+    restart: unless-stopped
+    networks:
+      - microservices_net
+
   gateway-service:
     build:
       context: .

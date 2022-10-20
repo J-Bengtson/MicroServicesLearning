@@ -98,28 +98,34 @@ app.MapPost("/payments/process", async (PaymentRequest request, PaymentDbContext
         return Results.Unauthorized();
     }
 
-    // Process payment (Simulated)
-    var transaction = new PaymentTransaction
-    {
-        UserId = userId,
-        Amount = request.Amount,
-        IsSuccessful = true,
-        ProcessedAt = DateTime.UtcNow
-    };
+    var transaction = PaymentTransaction.Create(userId, request.Amount);
 
     db.PaymentTransactions.Add(transaction);
     await db.SaveChangesAsync();
 
-    // Publish Integration Event
-    await publishEndpoint.Publish(new PaymentProcessedIntegrationEvent
+    if (transaction.IsSuccessful)
     {
-        PaymentId = transaction.Id,
-        UserId = transaction.UserId,
-        Amount = transaction.Amount,
-        IsSuccessful = transaction.IsSuccessful
-    });
-
-    return Results.Ok(new { message = "Payment processed successfully", transactionId = transaction.Id });
+        await publishEndpoint.Publish(new PaymentProcessedIntegrationEvent
+        {
+            PaymentId = transaction.Id,
+            UserId = transaction.UserId,
+            Amount = transaction.Amount,
+            IsSuccessful = true
+        });
+        return Results.Ok(transaction);
+    }
+    else
+    {
+        await publishEndpoint.Publish(new PaymentFailedIntegrationEvent
+        {
+            PaymentId = transaction.Id,
+            UserId = transaction.UserId,
+            Amount = transaction.Amount,
+            Reason = transaction.FailureReason ?? "Unknown Error",
+            FailedAt = DateTime.UtcNow
+        });
+        return Results.BadRequest(new { Error = transaction.FailureReason });
+    }
 }).RequireAuthorization();
 
 app.Run();

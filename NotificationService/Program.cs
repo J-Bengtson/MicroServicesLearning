@@ -18,6 +18,7 @@ builder.Services.AddMassTransit(x =>
     x.AddConsumer<NotificationService.Consumers.UserCreatedEmailConsumer>();
     x.AddConsumer<NotificationService.Consumers.PaymentReceiptConsumer>();
     x.AddConsumer<NotificationService.Consumers.SecurityAlertConsumer>();
+    x.AddConsumer<NotificationService.Consumers.PaymentFailedConsumer>();
 
     x.UsingRabbitMq((context, cfg) =>
     {

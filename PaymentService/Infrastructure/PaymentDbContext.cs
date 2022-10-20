@@ -11,6 +11,7 @@ namespace PaymentService.Infrastructure
         }
 
         public DbSet<PaymentTransaction> PaymentTransactions { get; set; }
+        public DbSet<PaymentInvoice> PaymentInvoices { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

@@ -87,6 +87,7 @@ app.MapGet("/api/reports/system-stats", async (IHttpClientFactory clientFactory,
     var authUrl = config["ReverseProxy:Clusters:authCluster:Destinations:destination1:Address"] + "stats";
     var paymentUrl = config["ReverseProxy:Clusters:paymentCluster:Destinations:destination1:Address"] + "stats";
     var notificationUrl = config["ReverseProxy:Clusters:notificationCluster:Destinations:destination1:Address"] + "stats";
+    var invoicesUrl = config["ReverseProxy:Clusters:paymentCluster:Destinations:destination1:Address"] + "payments/invoices";
 
     var safeGet = async (string url) =>
     {
@@ -110,8 +111,9 @@ app.MapGet("/api/reports/system-stats", async (IHttpClientFactory clientFactory,
     var authTask = safeGet(authUrl);
     var paymentTask = safeGet(paymentUrl);
     var notificationTask = safeGet(notificationUrl);
+    var invoicesTask = safeGet(invoicesUrl);
 
-    await Task.WhenAll(userTask, authTask, paymentTask, notificationTask);
+    await Task.WhenAll(userTask, authTask, paymentTask, notificationTask, invoicesTask);
 
     return Results.Ok(new
     {
@@ -122,6 +124,7 @@ app.MapGet("/api/reports/system-stats", async (IHttpClientFactory clientFactory,
             Users = userTask.Result,
             Security = authTask.Result,
             Finance = paymentTask.Result,
+            Invoices = invoicesTask.Result,
             Notifications = notificationTask.Result
         }
     });

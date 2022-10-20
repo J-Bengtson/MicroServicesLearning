@@ -108,6 +108,10 @@ app.MapPost("/payments/process", async (PaymentRequest request, PaymentDbContext
 
     if (transaction.IsSuccessful)
     {
+        var invoice = PaymentInvoice.Create(transaction.Id);
+        db.PaymentInvoices.Add(invoice);
+        await db.SaveChangesAsync();
+
         await publishEndpoint.Publish(new PaymentProcessedIntegrationEvent
         {
             PaymentId = transaction.Id,
@@ -115,7 +119,7 @@ app.MapPost("/payments/process", async (PaymentRequest request, PaymentDbContext
             Amount = transaction.Amount,
             IsSuccessful = true
         });
-        return Results.Ok(Core.Domain.ApiResponse<PaymentTransaction>.CreateSuccess(transaction));
+        return Results.Ok(Core.Domain.ApiResponse<object>.CreateSuccess(new { Transaction = transaction, Invoice = invoice }));
     }
     else
     {
@@ -130,6 +134,28 @@ app.MapPost("/payments/process", async (PaymentRequest request, PaymentDbContext
         return Results.BadRequest(Core.Domain.ApiResponse<object>.CreateFail(transaction.FailureReason ?? "Unknown Error"));
     }
 }).RequireAuthorization();
+
+app.MapGet("/payments/{userId}/invoices", async (Guid userId, PaymentDbContext db) =>
+{
+    // Realistically you should also check if the authenticated user matches this userId
+    // But for study purposes we just query
+    var invoices = await db.PaymentInvoices
+        .Join(db.PaymentTransactions,
+              i => i.PaymentTransactionId,
+              t => t.Id,
+              (i, t) => new { Invoice = i, Transaction = t })
+        .Where(x => x.Transaction.UserId == userId)
+        .Select(x => x.Invoice)
+        .ToListAsync();
+
+    return Results.Ok(Core.Domain.ApiResponse<List<PaymentInvoice>>.CreateSuccess(invoices));
+}).RequireAuthorization();
+
+app.MapGet("/payments/invoices", async (PaymentDbContext db) =>
+{
+    var invoices = await db.PaymentInvoices.ToListAsync();
+    return Results.Ok(Core.Domain.ApiResponse<List<PaymentInvoice>>.CreateSuccess(invoices));
+});
 
 app.Run();
 

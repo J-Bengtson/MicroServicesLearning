@@ -9,6 +9,8 @@ builder.Services.AddSwaggerGen();
 
 builder.Services.AddMassTransit(x =>
 {
+    x.AddConsumer<UserService.Consumers.PaymentProcessedConsumer>();
+
     x.UsingRabbitMq((context, cfg) =>
     {
         cfg.Host(builder.Configuration["RabbitMQ:Host"] ?? "localhost", "/", h =>
@@ -16,6 +18,8 @@ builder.Services.AddMassTransit(x =>
             h.Username("guest");
             h.Password("guest");
         });
+
+        cfg.ConfigureEndpoints(context);
     });
 });
 
@@ -36,7 +40,9 @@ app.MapGet("/user", () => Results.Ok(new
     version = "1.0"
 }));
 
-app.MapPost("/user", async (UserService.Domain.User user, UserDbContext db, MassTransit.IPublishEndpoint publishEndpoint) =>
+app.MapGet("/info", () => Results.Ok(new { Service = "User", Version = "1.0", Database = "Connected" }));
+
+app.MapPost("/users", async (UserService.Domain.User user, UserDbContext db, MassTransit.IPublishEndpoint publishEndpoint) =>
 {
     // Mock save user to DB
     db.Users.Add(user);

@@ -1,9 +1,67 @@
+using System.Net.Http;
+using System.Text.Json;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Configuration;
+using System.Threading.Tasks;
+using System;
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddReverseProxy()
     .LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));
 
+builder.Services.AddHttpClient();
+
 var app = builder.Build();
+
+app.MapGet("/api/system/overview", async (IHttpClientFactory clientFactory, IConfiguration config) =>
+{
+    var client = clientFactory.CreateClient();
+    
+    // We will extract destinations from configuration to make the calls
+    var userUrl = config["ReverseProxy:Clusters:userCluster:Destinations:destination1:Address"] + "info";
+    var authUrl = config["ReverseProxy:Clusters:authCluster:Destinations:destination1:Address"] + "info";
+    var paymentUrl = config["ReverseProxy:Clusters:paymentCluster:Destinations:destination1:Address"] + "info";
+    var notificationUrl = config["ReverseProxy:Clusters:notificationCluster:Destinations:destination1:Address"] + "info";
+
+    var safeGet = async (string url) =>
+    {
+        try
+        {
+            var response = await client.GetAsync(url);
+            if (response.IsSuccessStatusCode)
+            {
+                var content = await response.Content.ReadAsStringAsync();
+                return JsonSerializer.Deserialize<object>(content);
+            }
+            return new { Status = "Error", StatusCode = response.StatusCode };
+        }
+        catch (Exception ex)
+        {
+            return new { Status = "Unreachable", Error = ex.Message };
+        }
+    };
+
+    var userTask = safeGet(userUrl);
+    var authTask = safeGet(authUrl);
+    var paymentTask = safeGet(paymentUrl);
+    var notificationTask = safeGet(notificationUrl);
+
+    await Task.WhenAll(userTask, authTask, paymentTask, notificationTask);
+
+    return Results.Ok(new
+    {
+        AggregatedStatus = "Success",
+        Services = new
+        {
+            UserService = userTask.Result,
+            AuthService = authTask.Result,
+            PaymentService = paymentTask.Result,
+            NotificationService = notificationTask.Result
+        }
+    });
+});
 
 app.MapReverseProxy();
 

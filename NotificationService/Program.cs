@@ -16,6 +16,7 @@ builder.Services
 builder.Services.AddMassTransit(x =>
 {
     x.AddConsumer<NotificationService.Consumers.UserCreatedEmailConsumer>();
+    x.AddConsumer<NotificationService.Consumers.PaymentReceiptConsumer>();
 
     x.UsingRabbitMq((context, cfg) =>
     {
@@ -41,6 +42,8 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
+app.MapGet("/info", () => Results.Ok(new { Service = "Notification", MessageBroker = "RabbitMQ" }));
 
 app.MapGet("/health", async (IHealthService healthService) =>
 {

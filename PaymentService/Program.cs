@@ -81,6 +81,8 @@ if (app.Environment.IsDevelopment())
 app.UseAuthentication();
 app.UseAuthorization();
 
+app.MapGet("/info", () => Results.Ok(new { Service = "Payment", Secure = true }));
+
 app.MapPost("/payments/process", async (PaymentRequest request, PaymentDbContext db, IPublishEndpoint publishEndpoint, HttpContext httpContext) =>
 {
     var userIdClaim = httpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;

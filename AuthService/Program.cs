@@ -86,6 +86,8 @@ if (app.Environment.IsDevelopment())
 app.UseAuthentication();
 app.UseAuthorization();
 
+app.MapGet("/info", () => Results.Ok(new { Service = "Auth", JWT = "Enabled" }));
+
 app.MapPost("/auth/login", async (LoginRequest request, AuthDbContext db, IConfiguration config) =>
 {
     var authUser = await db.AuthUsers.FirstOrDefaultAsync(u => u.Email == request.Email && u.PasswordHash == request.Password);
